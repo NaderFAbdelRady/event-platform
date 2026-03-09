@@ -5,30 +5,32 @@
              xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence
              http://xmlns.jcp.org/xml/ns/persistence/persistence_2_2.xsd">
 
-    <persistence-unit name="platformPU" transaction-type="JTA">
+    <persistence-unit name="PlatformPU" transaction-type="JTA">
 
-        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
-
-        <!-- DataSource configured in WildFly standalone.xml -->
         <jta-data-source>java:/jdbc/PlatformDS</jta-data-source>
 
+        <!-- ✅ Register the new ComponentDefinition entity -->
+        <class>com.platform.engine.ComponentDefinition</class>
+
         <properties>
+            <!--
+                ✅ FIX: Changed from "create" / "create-drop" to "update".
+
+                "create"      → drops and recreates ALL tables on every deploy  ← was wiping your data
+                "create-drop" → same as create, also drops tables on shutdown   ← same problem
+                "update"      → only adds missing tables/columns, KEEPS all data ← correct for production
+                "validate"    → checks schema but never modifies it
+                "none"        → does nothing (use when you manage schema manually)
+            -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
+
             <!-- MySQL 8 dialect -->
-            <property name="hibernate.dialect"
-                      value="org.hibernate.dialect.MySQL8Dialect"/>
+            <property name="hibernate.dialect" value="org.hibernate.dialect.MySQL8Dialect"/>
 
-            <!-- auto = update schema on deploy (use "validate" in production) -->
-            <property name="hibernate.hbm2ddl.auto"       value="update"/>
-            <property name="hibernate.show_sql"            value="false"/>
-            <property name="hibernate.format_sql"          value="true"/>
+            <!-- Optional: show SQL in logs during development (set to false in production) -->
+            <property name="hibernate.show_sql" value="false"/>
+            <property name="hibernate.format_sql" value="false"/>
 
-            <!-- Connection pool -->
-            <property name="hibernate.connection.pool_size" value="10"/>
-
-            <!-- UTF-8 -->
-            <property name="hibernate.connection.CharSet"     value="utf8mb4"/>
-            <property name="hibernate.connection.characterEncoding" value="utf8"/>
-            <property name="hibernate.connection.useUnicode"  value="true"/>
         </properties>
 
     </persistence-unit>

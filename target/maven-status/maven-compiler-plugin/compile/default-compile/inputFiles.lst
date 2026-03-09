@@ -12,6 +12,8 @@ C:\Projects\event-platform\src\main\java\com\platform\components\AbstractEventCo
 C:\Projects\event-platform\src\main\java\com\platform\components\ComponentMetadata.java
 C:\Projects\event-platform\src\main\java\com\platform\components\EventComponent.java
 C:\Projects\event-platform\src\main\java\com\platform\engine\ClasspathExtractor.java
+C:\Projects\event-platform\src\main\java\com\platform\engine\ComponentDefinition.java
+C:\Projects\event-platform\src\main\java\com\platform\engine\ComponentDefinitionRepository.java
 C:\Projects\event-platform\src\main\java\com\platform\engine\ComponentEntry.java
 C:\Projects\event-platform\src\main\java\com\platform\engine\ComponentLoader.java
 C:\Projects\event-platform\src\main\java\com\platform\engine\ComponentRegistry.java

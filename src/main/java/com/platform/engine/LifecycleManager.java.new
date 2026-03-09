@@ -1,0 +1,98 @@
+package com.platform.engine;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
+import jakarta.inject.Inject;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Singleton EJB that manages the platform lifecycle.
+ *
+ * On every startup / redeploy it queries MySQL for all ACTIVE component
+ * definitions and reloads them into the in-memory ComponentRegistry, so no
+ * data is ever lost across redeployments.
+ */
+@Singleton
+@Startup
+public class LifecycleManager {
+
+    private static final Logger LOG = Logger.getLogger(LifecycleManager.class.getName());
+
+    @Inject
+    private ComponentRegistry registry;
+
+    @Inject
+    private ComponentLoader loader;
+
+    @Inject
+    private ComponentDefinitionRepository repository;
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    @PostConstruct
+    public void onStartup() {
+        LOG.info("=== Platform LifecycleManager starting ===");
+        reloadComponentsFromDatabase();
+        LOG.info("=== Platform LifecycleManager ready ===");
+    }
+
+    @PreDestroy
+    public void onShutdown() {
+        LOG.info("=== Platform LifecycleManager shutting down ===");
+        registry.clear();
+    }
+
+    // ── Reload ────────────────────────────────────────────────────────────────
+
+    /**
+     * Loads all ACTIVE components from MySQL and registers them in memory.
+     * Called automatically on every startup/redeploy — this is the fix that
+     * prevents components from disappearing after a rebuild.
+     */
+    public void reloadComponentsFromDatabase() {
+        LOG.info("Reloading active components from database...");
+
+        List<ComponentDefinition> definitions = repository.findAllActive();
+        LOG.info("Found " + definitions.size() + " active component(s) in database.");
+
+        int loaded = 0;
+        int failed = 0;
+
+        for (ComponentDefinition def : definitions) {
+            try {
+                EventComponent component = loader.compileAndLoad(def.getName(), def.getSourceCode());
+                registry.register(component);
+                LOG.info("Reloaded component: " + def.getName() + " v" + def.getVersion());
+                loaded++;
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE,
+                    "Failed to reload component '" + def.getName() + "' from DB: " + e.getMessage(), e);
+                // Mark it as ERROR in DB so it doesn't silently disappear
+                repository.updateStatus(def.getName(), ComponentStatus.ERROR);
+                failed++;
+            }
+        }
+
+        LOG.info("Component reload complete — loaded: " + loaded + ", failed: " + failed);
+    }
+
+    /**
+     * Convenience method to reload a single component by name (e.g. after an update).
+     */
+    public void reloadComponent(String name) {
+        repository.findByName(name).ifPresent(def -> {
+            try {
+                EventComponent component = loader.compileAndLoad(def.getName(), def.getSourceCode());
+                registry.unregister(name);
+                registry.register(component);
+                LOG.info("Hot-reloaded component: " + name);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "Hot-reload failed for component: " + name, e);
+            }
+        });
+    }
+}
