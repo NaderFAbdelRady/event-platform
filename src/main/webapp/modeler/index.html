@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event Platform — Component Modeler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/modeler.css"/>
+</head>
+<body>
+
+<!-- ── BOOT OVERLAY ─────────────────────────────────────── -->
+<div id="bootOverlay">
+  <div class="boot-content">
+    <div class="boot-logo">⬡</div>
+    <div class="boot-text">EVENT PLATFORM</div>
+    <div class="boot-bar"><div class="boot-fill"></div></div>
+    <div class="boot-status" id="bootStatus">Initializing runtime...</div>
+  </div>
+</div>
+
+<!-- ── SHELL ─────────────────────────────────────────────── -->
+<div class="shell" id="shell">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">⬡ EVENT PLATFORM</span>
+      <span class="topbar-sep">|</span>
+      <span class="topbar-sub">Component Modeler</span>
+    </div>
+    <div class="topbar-center">
+      <div class="engine-pill" id="enginePill">
+        <span class="engine-dot" id="engineDot"></span>
+        <span id="engineLabel">CONNECTING</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-stat" id="statActive">
+        <span class="tstat-val">—</span>
+        <span class="tstat-lbl">ACTIVE</span>
+      </div>
+      <div class="topbar-stat warn" id="statFailed">
+        <span class="tstat-val">—</span>
+        <span class="tstat-lbl">FAILED</span>
+      </div>
+      <div class="topbar-stat danger" id="statDlq">
+        <span class="tstat-val">—</span>
+        <span class="tstat-lbl">DLQ</span>
+      </div>
+      <div class="topbar-clock" id="clock"></div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <nav class="sidenav">
+        <button class="navbtn active" data-screen="components" onclick="showScreen('components')">
+          <span class="navbtn-icon">▣</span>
+          <span class="navbtn-label">Components</span>
+          <span class="navbtn-badge" id="navBadgeComponents"></span>
+        </button>
+        <button class="navbtn" data-screen="engine" onclick="showScreen('engine')">
+          <span class="navbtn-icon">◈</span>
+          <span class="navbtn-label">Engine</span>
+        </button>
+        <button class="navbtn" data-screen="events" onclick="showScreen('events')">
+          <span class="navbtn-icon">◎</span>
+          <span class="navbtn-label">Event Log</span>
+          <span class="navbtn-badge live" id="navBadgeEvents">LIVE</span>
+        </button>
+        <button class="navbtn" data-screen="dlq" onclick="showScreen('dlq')">
+          <span class="navbtn-icon">◬</span>
+          <span class="navbtn-label">Dead Letters</span>
+          <span class="navbtn-badge danger" id="navBadgeDlq"></span>
+        </button>
+        <button class="navbtn" data-screen="metrics" onclick="showScreen('metrics')">
+          <span class="navbtn-icon">◫</span>
+          <span class="navbtn-label">Metrics</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sf-row">
+          <span class="sf-label">WATCH DIR</span>
+          <span class="sf-val" id="sfWatchDir">—</span>
+        </div>
+        <div class="sf-row">
+          <span class="sf-label">BUILD</span>
+          <span class="sf-val">v1.0.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- ══ COMPONENTS ══════════════════════════════════ -->
+      <div id="screen-components" class="screen active">
+        <div class="screen-head">
+          <div class="screen-title-group">
+            <h1 class="screen-title">Components</h1>
+            <p class="screen-desc">Manage, generate and monitor runtime components</p>
+          </div>
+          <div class="screen-actions">
+            <div class="search-wrap">
+              <span class="search-icon">⌕</span>
+              <input class="search-input" id="searchComponents" placeholder="Search components..." oninput="filterComponents()"/>
+            </div>
+            <select class="select-input" id="statusFilter" onchange="filterComponents()">
+              <option value="">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="FAILED">Failed</option>
+              <option value="LOADING">Loading</option>
+              <option value="UNLOADED">Unloaded</option>
+            </select>
+            <button class="btn btn-primary" onclick="openGenerateModal()">＋ New Component</button>
+          </div>
+        </div>
+        <div id="componentsGrid" class="components-grid"></div>
+      </div>
+
+      <!-- ══ ENGINE ══════════════════════════════════════ -->
+      <div id="screen-engine" class="screen">
+        <div class="screen-head">
+          <div class="screen-title-group">
+            <h1 class="screen-title">Engine</h1>
+            <p class="screen-desc">Runtime state, registry and lifecycle control</p>
+          </div>
+          <button class="btn btn-ghost" onclick="reloadAll()">↺ Reload All</button>
+        </div>
+        <div class="kpi-row" id="engineKpis"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">LOADED REGISTRY</span>
+            <span class="panel-count" id="registryCount">0 components</span>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>NAME</th><th>STATUS</th><th>LOADED</th><th>PROCESSED</th><th>AVG TIME</th><th>ACTIONS</th></tr>
+            </thead>
+            <tbody id="engineTable"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">LIFECYCLE LOG</span></div>
+          <div class="lifecycle-log" id="lifecycleLog">
+            <div class="log-empty">No lifecycle events yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ EVENTS ══════════════════════════════════════ -->
+      <div id="screen-events" class="screen">
+        <div class="screen-head">
+          <div class="screen-title-group">
+            <h1 class="screen-title">Event Log</h1>
+            <p class="screen-desc">Real-time stream of all events flowing through the bus</p>
+          </div>
+          <div class="screen-actions">
+            <div class="live-indicator"><span class="live-dot"></span> LIVE</div>
+            <button class="btn btn-primary" onclick="openFireModal()">⚡ Fire Event</button>
+          </div>
+        </div>
+        <div class="event-stream-wrap">
+          <div class="event-stream-header">
+            <span class="es-col time">TIME</span>
+            <span class="es-col type">EVENT TYPE</span>
+            <span class="es-col source">SOURCE</span>
+            <span class="es-col user">USER</span>
+            <span class="es-col status">STATUS</span>
+          </div>
+          <div class="event-stream" id="eventStream">
+            <div class="stream-empty">
+              <span class="stream-empty-icon">◎</span>
+              <span>Waiting for events...</span>
+              <span class="stream-empty-sub">Fire a test event or connect a client to see the stream</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DLQ ══════════════════════════════════════════ -->
+      <div id="screen-dlq" class="screen">
+        <div class="screen-head">
+          <div class="screen-title-group">
+            <h1 class="screen-title">Dead Letter Queue</h1>
+            <p class="screen-desc">Events that exhausted all retry attempts</p>
+          </div>
+          <div class="screen-actions">
+            <button class="btn btn-ghost" onclick="retryAllDlq()">↺ Retry All</button>
+            <button class="btn btn-danger-ghost" onclick="clearDlq()">⊘ Clear Resolved</button>
+          </div>
+        </div>
+        <div id="dlqEmpty" class="dlq-empty">
+          <span class="dlq-empty-icon">✓</span>
+          <span>Dead letter queue is empty</span>
+        </div>
+        <div class="panel" id="dlqPanel" style="display:none">
+          <table class="data-table">
+            <thead>
+              <tr><th>TIME</th><th>COMPONENT</th><th>EVENT TYPE</th><th>RETRIES</th><th>REASON</th><th>ACTIONS</th></tr>
+            </thead>
+            <tbody id="dlqTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══ METRICS ══════════════════════════════════════ -->
+      <div id="screen-metrics" class="screen">
+        <div class="screen-head">
+          <div class="screen-title-group">
+            <h1 class="screen-title">Metrics</h1>
+            <p class="screen-desc">Platform performance and throughput</p>
+          </div>
+          <select class="select-input" id="metricsPeriod" onchange="loadMetrics()">
+            <option value="1h">Last 1 hour</option>
+            <option value="6h" selected>Last 6 hours</option>
+            <option value="24h">Last 24 hours</option>
+          </select>
+        </div>
+        <div class="kpi-row" id="metricsKpis"></div>
+        <div class="metrics-grid">
+          <div class="panel chart-panel">
+            <div class="panel-head"><span class="panel-title">EVENT THROUGHPUT</span></div>
+            <div class="chart-wrap"><canvas id="throughputChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">COMPONENT BREAKDOWN</span></div>
+            <table class="data-table">
+              <thead>
+                <tr><th>COMPONENT</th><th>PROCESSED</th><th>FAILED</th><th>AVG MS</th><th>STATUS</th></tr>
+              </thead>
+              <tbody id="metricsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══ GENERATE MODAL ══════════════════════════════════════ -->
+<div id="generateModal" class="modal-overlay" onclick="overlayClose(event,'generateModal')">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title-group">
+        <span class="modal-icon">⬡</span>
+        <div>
+          <div class="modal-title">Generate Component</div>
+          <div class="modal-sub">Describe behavior in plain English — AI writes the Java class</div>
+        </div>
+      </div>
+      <button class="modal-x" onclick="closeModal('generateModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="field">
+          <label class="field-label">Component Name <span class="req">*</span></label>
+          <input class="field-input mono" id="genName" placeholder="e.g. MemoryComponent"/>
+          <span class="field-hint">PascalCase, no spaces</span>
+        </div>
+        <div class="field">
+          <label class="field-label">Version</label>
+          <input class="field-input mono" id="genVersion" value="1.0.0"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="field">
+          <label class="field-label">AI Provider <span class="req">*</span></label>
+          <div class="provider-selector">
+            <label class="provider-opt selected" data-val="CLAUDE" onclick="selectProvider(this)">
+              <input type="radio" name="provider" value="CLAUDE" checked hidden/>
+              <span class="popt-name">Claude</span>
+              <span class="popt-sub">Anthropic</span>
+            </label>
+            <label class="provider-opt" data-val="GROQ" onclick="selectProvider(this)">
+              <input type="radio" name="provider" value="GROQ" hidden/>
+              <span class="popt-name">Groq</span>
+              <span class="popt-sub">LLaMA 3.3</span>
+            </label>
+            <label class="provider-opt" data-val="GEMINI" onclick="selectProvider(this)">
+              <input type="radio" name="provider" value="GEMINI" hidden/>
+              <span class="popt-name">Gemini</span>
+              <span class="popt-sub">Google</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">API Key <span class="req">*</span></label>
+          <input class="field-input mono" type="password" id="genApiKey" placeholder="sk-..."/>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Behavior Description <span class="req">*</span></label>
+        <textarea class="field-textarea" id="genDescription" rows="5"
+          placeholder="Describe what this component should do in plain English.&#10;&#10;Example: Listen for USER_MESSAGE events and save the message content, userId, and timestamp to the 'messages' collection. Then push a confirmation back to the user via WebSocket with the saved message ID."></textarea>
+      </div>
+      <div id="genPipeline" class="gen-pipeline hidden">
+        <div class="pipeline-step" id="ps1"><span class="ps-dot"></span><span class="ps-label">Sending to AI provider</span><span class="ps-status"></span></div>
+        <div class="pipeline-step" id="ps2"><span class="ps-dot"></span><span class="ps-label">Validating contract</span><span class="ps-status"></span></div>
+        <div class="pipeline-step" id="ps3"><span class="ps-dot"></span><span class="ps-label">Compiling Java class</span><span class="ps-status"></span></div>
+        <div class="pipeline-step" id="ps4"><span class="ps-dot"></span><span class="ps-label">Deploying to engine</span><span class="ps-status"></span></div>
+      </div>
+      <div id="genSourceWrap" class="gen-source-wrap hidden">
+        <div class="gen-source-head">
+          <span class="gen-source-title">Generated Source</span>
+          <button class="btn-copy" onclick="copySource()">⎘ Copy</button>
+        </div>
+        <pre class="gen-source" id="genSourceCode"></pre>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('generateModal')">Cancel</button>
+      <button class="btn btn-primary" id="genBtn" onclick="generateComponent()">
+        <span id="genBtnText">⬡ Generate Class</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FIRE EVENT MODAL ════════════════════════════════════ -->
+<div id="fireModal" class="modal-overlay" onclick="overlayClose(event,'fireModal')">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <div class="modal-title-group">
+        <span class="modal-icon">⚡</span>
+        <div>
+          <div class="modal-title">Fire Test Event</div>
+          <div class="modal-sub">Inject an event directly onto the bus</div>
+        </div>
+      </div>
+      <button class="modal-x" onclick="closeModal('fireModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="field">
+          <label class="field-label">Event Type</label>
+          <input class="field-input mono" id="fireType" value="TEST_EVENT"/>
+        </div>
+        <div class="field">
+          <label class="field-label">Source</label>
+          <select class="field-input" id="fireSource">
+            <option>EXTERNAL</option><option>FRONTEND</option>
+            <option>SCHEDULER</option><option>COMPONENT</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">User ID</label>
+        <input class="field-input mono" id="fireUser" value="test-user"/>
+      </div>
+      <div class="field">
+        <label class="field-label">Payload <span class="field-hint-inline">(JSON)</span></label>
+        <textarea class="field-textarea mono" id="firePayload" rows="4">{"content": "Hello from test event"}</textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('fireModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="fireEvent()">⚡ Fire Event</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="js/modeler.js"></script>
+</body>
+</html>
